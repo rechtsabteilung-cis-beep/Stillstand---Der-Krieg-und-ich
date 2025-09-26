@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stillstand – Der Krieg und du</title>
+<style>
+  :root{
+    --bg:#08121a; --card:#0e1b25; --text:#e6f0f6; --muted:#9fb8d0;
+    --accent:#2f97d1; --danger:#c14a3a;
+    --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#061018,#07131b);font-family:Inter,system-ui,Arial,sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center;padding:20px;min-height:100vh}
+  #game{width:100%;max-width:var(--maxw);background:var(--card);border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(2,6,12,.7)}
+  header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.03)}
+  header h1{margin:0;font-size:20px}
+  main{display:flex;gap:18px;padding:18px 20px}
+  .left{flex:1;min-width:320px}
+  .scene{background:#071221;border-radius:10px;padding:12px}
+  .scene-image{width:100%;height:420px;border-radius:8px;overflow:hidden;background:#06101a;display:flex;align-items:center;justify-content:center}
+  .scene-image img{width:100%;height:100%;object-fit:cover;display:block}
+  .meta{margin-top:10px;color:var(--muted);font-size:13px}
+  .right{width:380px;max-width:40%;display:flex;flex-direction:column;gap:12px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:8px;min-height:160px}
+  .choices{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  button.choice{background:var(--accent);color:#032133;border:0;padding:12px 14px;border-radius:8px;font-weight:700;cursor:pointer;text-align:left}
+  button.secondary{background:#6aa6d8}
+  button.danger{background:var(--danger);color:white}
+  .log{background:#061821;border-radius:8px;padding:10px;color:var(--muted);max-height:240px;overflow:auto}
+  footer{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid rgba(255,255,255,.03)}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.06);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
+  .hidden{display:none}
+  @media (max-width:920px){main{flex-direction:column}.right{max-width:100%;width:100%}}
+</style>
+</head>
+<body>
+  <div id="game" role="application" aria-labelledby="title">
+    <header>
+      <h1 id="title">Stillstand – Der Krieg und du</h1>
+      <div style="color:var(--muted);font-size:13px;margin-top:6px">4 Parts. Entscheidungen beeinflussen eine abschließende Bewertung. Spiel muss komplett durchlaufen werden.</div>
+    </header>
+
+    <main>
+      <div class="left">
+        <div class="scene">
+          <div class="scene-image" id="sceneImage">
+            <img id="sceneImg" src="intro_scene.jpg" alt="Szene">
+          </div>
+          <div class="meta" id="sceneMeta">Part <span id="partNumber">1</span> • <span id="sceneTitle">Intro</span></div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="card" id="textCard">
+          <strong id="sceneTextTitle">Szene</strong>
+          <p id="sceneText" style="margin-top:10px;color:var(--text);line-height:1.4"></p>
+        </div>
+
+        <div class="card" aria-live="polite">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Wähle deine Handlung</strong>
+            <span style="font-size:13px;color:var(--muted)">Tastatur: Zifferntaste wählen</span>
+          </div>
+          <div class="choices" id="choices"></div>
+        </div>
+
+        <div class="log card" id="decisionLog">
+          <strong>Deine Entscheidungen</strong>
+          <ul id="logList" style="margin:8px 0 0 18px;padding:0;list-style:disc"></ul>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div style="color:var(--muted);font-size:13px">Bilder: lege die angegebenen Dateinamen in den Spielordner.</div>
+      <div>
+        <button class="btn-ghost" id="restartBtn">Neu starten</button>
+      </div>
+    </footer>
+  </div>
+
+<script>
+/* Spielstruktur: 4 Parts (müssen nacheinander gespielt werden).
+   Entscheidungen haben 'effect' Werte, die am Ende ausgewertet werden.
+   Tastatur: 1/2/3 wählen Option; Enter für Weiter bei Endbildschirm.
+*/
+
+const parts = [
+  {
+    id:"part1",
+    title:"Teil 1 – Widerstand: Entmachtung",
+    image:"part1_hitler_action.jpg",
+    text:"Berlin, geheime Zelle 1943. Deine Gruppe plant, die Führung zu lähmen. Du kannst: offen handeln (hohes Risiko), Informationen weitergeben (mittleres Risiko), oder abwarten (kein Risiko). Jede Option ändert Mut, Unterstützung und Friedenspotenzial.",
+    choices:[
+      {key:"1", label:"Offen handeln: ein Anschlag oder Staatsstreich planen (hohes Risiko, großes Potenzial)", effect:{peace:2,risk:3,trust:1}},
+      {key:"2", label:"Geheime Infos liefern an Verbündete (mittleres Risiko, moderater Effekt)", effect:{peace:1,risk:1,trust:2}},
+      {key:"3", label:"Abwarten: Schutz der Familie; kein Eingreifen (kein Risiko, kein Effekt)", effect:{peace:0,risk:0,trust:-1}}
+    ]
+  },
+  {
+    id:"part2",
+    title:"Teil 2 – US‑Soldaten: Handeln im Einsatz",
+    image:"part2_us_soldiers.jpg",
+    text:"Frankreich 1944. Du gehörst einer Einheit an. Du kannst humanitär handeln (Zivilisten schützen), strikt Befehle ausführen (taktisch), oder beides verbinden (heimlich helfen).",
+    choices:[
+      {key:"1", label:"Humanitär: zivile Hilfe organisieren (starker moralischer Effekt)", effect:{peace:2,trust:2}},
+      {key:"2", label:"Befehl befolgen: militärisch, hartes Vorgehen (kurzfristig effektiv, Vertrauen leidet)", effect:{peace:-1,trust:-2}},
+      {key:"3", label:"Doppelte Haltung: öffentlich Befehl, heimlich helfen (gefährlich, gemischter Effekt)", effect:{peace:1,trust:1}}
+    ]
+  },
+  {
+    id:"part3",
+    title:"Teil 3 – Luftbegegnung: Moralische Flugentscheidung",
+    image:"part3_plane_encounter.jpg",
+    text:"Du steuerst ein Jagdflugzeug. Du siehst ein beschädigtes US‑Propellerflugzeug mit Verwundeten. Angreifen, schützen oder ablenken? Deine Wahl hat moralische und strategische Folgen.",
+    choices:[
+      {key:"1", label:"Angreifen: Gegner ausschalten, Eskalation steigt (taktisch)", effect:{peace:-2,moral:-2,risk:2}},
+      {key:"2", label:"Schutz anbieten: Menschenleben retten, Risiko für dich (stark moralisch)", effect:{peace:2,moral:3,risk:1}},
+      {key:"3", label:"Ablenken/Signal: Rettung ermöglichen durch Manöver (moderater Effekt)", effect:{peace:1,moral:1,risk:1}}
+    ]
+  },
+  {
+    id:"part4",
+    title:"Teil 4 – Nachkriegsordnung: Konferenz",
+    image:"part4_conference.jpg",
+    text:"1945, Delegierte beraten die Nachkriegsordnung. Du kannst Versöhnung, harte Strafen oder einen Hybrid‑Ansatz vertreten. Langfristige Stabilität hängt von der Balance ab.",
+    choices:[
+      {key:"1", label:"Versöhnung fördern: Bildung, Wiedergutmachung, Zusammenarbeit (langfristig stabil)", effect:{peace:3,stability:3}},
+      {key:"2", label:"Strafe als Abschreckung: harte Bestrafung (Rachemotiv, kurzsichtige Sicherheit)", effect:{peace:-1,stability:-2}},
+      {key:"3", label:"Hybrid: Kombination aus Strafe und Wiederaufbau (ausgewogen)", effect:{peace:1,stability:1}}
+    ]
+  }
+];
+
+let idx = 0;
+let decisions = [];
+
+// DOM
+const sceneImg = document.getElementById('sceneImg');
+const partNumber = document.getElementById('partNumber');
+const sceneTitle = document.getElementById('sceneTitle');
+const sceneText = document.getElementById('sceneText');
+const choicesDiv = document.getElementById('choices');
+const logList = document.getElementById('logList');
+
+function renderPart(i){
+  const p = parts[i];
+  partNumber.textContent = i+1;
+  sceneTitle.textContent = p.title;
+  sceneText.textContent = p.text;
+  // set image (falls fehlt, zeigt Browser leeres Platzhalter)
+  sceneImg.src = p.image;
+  sceneImg.alt = p.title;
+  // choices
+  choicesDiv.innerHTML = '';
+  p.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    if(c.label.toLowerCase().includes('angreifen') || c.label.toLowerCase().includes('strafe')) btn.classList.add('danger');
+    btn.innerHTML = `<strong>${c.key}</strong> — ${c.label}`;
+    btn.onclick = () => selectChoice(p, c);
+    choicesDiv.appendChild(btn);
+  });
+  // keyboard: bind keys 1/2/3
+  document.onkeydown = (e) => {
+    const k = e.key;
+    const match = p.choices.find(ch => ch.key === k);
+    if(match) selectChoice(p, match);
+  };
+}
+
+function updateLog(){
+  logList.innerHTML = '';
+  decisions.forEach(d => {
+    const li = document.createElement('li');
+    li.textContent = `${d.partTitle}: ${d.choiceLabel}`;
+    logList.appendChild(li);
+  });
+}
+
+function selectChoice(part, choice){
+  decisions.push({
+    partId: part.id,
+    partTitle: part.title,
+    choiceKey: choice.key,
+    choiceLabel: choice.label,
+    effect: choice.effect || {}
+  });
+  updateLog();
+  // weiter oder zusammenfassung
+  idx++;
+  if(idx < parts.length) renderPart(idx);
+  else showSummary();
+}
+
+function showSummary(){
+  // verstecke main content und baue summary
+  document.querySelector('main').innerHTML = '';
+  const container = document.getElementById('game');
+  const sumHTML = document.createElement('div');
+  sumHTML.style.padding = '22px';
+  sumHTML.innerHTML = `<h2>Zusammenfassung</h2>
+    <p style="color:var(--muted)">Du hast alle 4 Parts durchgespielt. Unten siehst du deine Entscheidungen, eine einfache Wirkungsauswertung und eine moralische Aufgabe zur Reflexion.</p>
+    <h3>Gewählte Optionen</h3>
+    <ul id="chosenList"></ul>
+    <h3>Effekte (vereinfachte Summe)</h3>
+    <ul id="effectList"></ul>
+    <h3>Ergebnis</h3>
+    <p id="resultText"></p>
+    <h3>Moralische Reflexion</h3>
+    <p>Wähle eine deiner getroffenen Entscheidungen, die du rückgängig machen könntest. Schreibe 4–6 Sätze in dein Heft: Warum würdest du sie ändern und welche Alternative würdest du wählen?</p>
+    <div style="margin-top:12px"><button id="restartEnd" class="choice secondary">Nochmal spielen</button></div>
+  `;
+  document.querySelector('main').appendChild(sumHTML);
+
+  // fill lists and compute effects
+  const chosenList = document.getElementById('chosenList');
+  const effectList = document.getElementById('effectList');
+
+  let totals = {peace:0, risk:0, trust:0, moral:0, stability:0};
+  decisions.forEach(d=>{
+    const li = document.createElement('li'); li.textContent = `${d.partTitle}: ${d.choiceLabel}`; chosenList.appendChild(li);
+    for(const k of Object.keys(totals)){
+      if(d.effect[k]) totals[k]+=d.effect[k];
+    }
+  });
+  for(const k of Object.keys(totals)){
+    const li = document.createElement('li'); li.textContent = `${k}: ${totals[k]}`; effectList.appendChild(li);
+  }
+
+  const peaceIndex = (totals.peace || 0) + (totals.moral || 0) + (totals.trust || 0) + (totals.stability || 0) - (totals.risk || 0);
+  let verdict = '';
+  if(peaceIndex >= 6) verdict = 'Dein Handeln förderte deutlich friedensstiftende Maßnahmen und stabile Lösungen.';
+  else if(peaceIndex >= 2) verdict = 'Dein Handeln hatte positive Aspekte, aber nicht ausreichend, um umfassend Frieden zu sichern.';
+  else verdict = 'Dein Handeln reichte nicht aus, um nachhaltigen Frieden zu fördern; kurzfristige Risiken und Konflikte dominierten.';
+
+  document.getElementById('resultText').textContent = verdict;
+  document.getElementById('restartEnd').onclick = () => location.reload();
+}
+
+// Restart button
+document.getElementById('restartBtn').onclick = () => {
+  if(confirm('Spiel wirklich neu starten?')) location.reload();
+};
+
+// initial render
+renderPart(0);
+</script>
+</body>
+</html>
